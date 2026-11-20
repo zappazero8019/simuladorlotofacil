@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#101a2e" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="./icone.svg" />
+    <link rel="apple-touch-icon" href="./icone.svg" />
+    <meta name="description" content="Simulador Lotofácil — sorteio no globo 3D ou roleta, volante, apostas, histórico e estatísticas" />
+    <title>Simulador Lotofácil — Sorteio e Apostas</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="cabecalho">
+        <h1>Simulador Lotofácil</h1>
+        <p>Sorteio, apostas simuladas e histórico financeiro — tudo neste navegador.</p>
+        <p id="selo-modo-teste" class="selo-modo-teste" hidden>MODO DE TESTE ATIVO — SIMULAÇÃO VISUAL</p>
+      </header>
+
+      <nav class="abas" aria-label="Áreas da aplicação">
+        <button id="aba-sorteio" type="button" class="aba ativa" aria-pressed="true" data-area="sorteio">Sorteio</button>
+        <button id="aba-apostas" type="button" class="aba" aria-pressed="false" data-area="apostas">Apostas</button>
+        <button id="aba-historico" type="button" class="aba" aria-pressed="false" data-area="historico">Histórico</button>
+        <button id="aba-financeiro" type="button" class="aba" aria-pressed="false" data-area="financeiro">Financeiro</button>
+        <button id="aba-estatisticas" type="button" class="aba" aria-pressed="false" data-area="estatisticas">Estatísticas</button>
+        <button id="aba-configuracoes" type="button" class="aba" aria-pressed="false" data-area="configuracoes">Configurações</button>
+      </nav>
+
+      <section id="area-sorteio" class="aba-conteudo" data-area="sorteio" aria-label="Sorteio">
+        <section class="controles" aria-label="Controles do sorteio">
+          <fieldset class="modos">
+            <legend>Modo visual</legend>
+            <label class="modo-opcao">
+              <input id="modo-globo" type="radio" name="modo" value="globo" checked />
+              <span>Globo 3D</span>
+            </label>
+            <label class="modo-opcao">
+              <input id="modo-roleta" type="radio" name="modo" value="roleta" />
+              <span>Roleta simplificada</span>
+            </label>
+          </fieldset>
+
+          <fieldset class="modos ritmos">
+            <legend>Ritmo</legend>
+            <label class="modo-opcao">
+              <input id="ritmo-normal" type="radio" name="ritmo" value="normal" checked />
+              <span>Normal</span>
+            </label>
+            <label class="modo-opcao">
+              <input id="ritmo-acelerado" type="radio" name="ritmo" value="acelerado" />
+              <span>Acelerado</span>
+            </label>
+            <label class="modo-opcao">
+              <input id="ritmo-instantaneo" type="radio" name="ritmo" value="instantaneo" />
+              <span>Instantâneo</span>
+            </label>
+          </fieldset>
+
+          <div class="botoes">
+            <button id="btn-sortear" type="button" class="primario">Iniciar sorteio</button>
+            <button id="btn-pausar" type="button">Pausar</button>
+            <button id="btn-continuar" type="button">Continuar</button>
+            <button id="btn-proximo" type="button">Próximo número</button>
+            <button id="btn-todos" type="button">Revelar todos</button>
+            <button id="btn-reiniciar" type="button">Reiniciar</button>
+          </div>
+
+          <label class="velocidade">
+            Velocidade da apresentação
+            <input id="velocidade" type="range" min="0.5" max="5" step="0.5" value="1" />
+            <output id="velocidade-valor" for="velocidade">1×</output>
+          </label>
+        </section>
+
+        <main class="area-apresentacao">
+          <p id="aviso-3d" class="mensagem aviso" role="status" hidden></p>
+          <section id="painel-globo" class="painel">
+            <div id="globo" class="palco" role="group" aria-label="Globo de sorteio da Lotofácil"></div>
+          </section>
+
+          <section id="painel-roleta" class="painel" hidden>
+            <div id="roleta" class="roleta" aria-label="Roleta simplificada da Lotofácil"></div>
+          </section>
+        </main>
+
+        <section class="resultado-compartilhado" aria-label="Resultado da sessão">
+          <div class="progresso-extracao">
+            <span>Extração</span>
+            <div class="barra-progresso" role="progressbar" aria-label="Números revelados" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0">
+              <span id="progresso-barra"></span>
+            </div>
+            <strong id="progresso-texto">0/15</strong>
+          </div>
+          <div class="contador-primeiro-bilhete" aria-live="polite">
+            <span>Primeiro bilhete:</span>
+            <strong id="contador-primeiro-bilhete">0 números sorteados</strong>
+          </div>
+          <div id="resultados-globo" class="resultados" aria-label="Números extraídos"></div>
+        </section>
+      </section>
+
+      <section id="painel-apostas" class="painel-aba aba-conteudo" data-area="apostas" aria-label="Sistema de apostas" hidden>
+        <header class="painel-cabecalho">
+          <h2>Volante de apostas</h2>
+          <p>
+            Monte apostas de 15 a 20 números, use a Surpresinha, repita com a
+            Teimosinha, forme bolões fictícios e confira contra o resultado da sessão.
+            Todo valor é simulado — sem pagamentos reais.
+          </p>
+        </header>
+
+        <div class="apostas-layout">
+          <div class="volante-coluna">
+            <div id="volante" class="volante" aria-label="Volante da Lotofácil"></div>
+            <div class="volante-resumo" aria-live="polite">
+              <span>Selecionados: <strong id="volante-quantidade">0</strong>/20</span>
+              <span>Preço por bilhete: <strong id="volante-preco">R$ 0,00</strong></span>
+              <span id="volante-combinacoes">mínimo de 15 números</span>
+            </div>
+            <div class="botoes volante-botoes">
+              <button id="btn-limpar" type="button">Limpar seleção</button>
+              <label class="campo">
+                Surpresinha
+                <select id="surpresinha-tamanho" aria-label="Quantidade de números da Surpresinha"></select>
+              </label>
+              <button id="btn-surpresinha" type="button">Gerar Surpresinha</button>
+            </div>
+          </div>
+
+          <div class="apostas-config">
+            <fieldset class="config-grupo compra-grupo">
+              <legend>Comprar bilhetes</legend>
+              <div class="filtros-linha">
+                <label class="campo">Quantidade de bilhetes
+                  <input id="quantidade-bilhetes" type="number" min="1" step="1" inputmode="numeric" value="1" />
+                </label>
+                <label class="campo">Dezenas por bilhete
+                  <output id="compra-dezenas">—</output>
+                </label>
+                <label class="campo">Preço por bilhete
+                  <output id="compra-preco-unitario">R$ 0,00</output>
+                </label>
+                <label class="campo">Custo total
+                  <output id="compra-custo-total" class="destaque-valor">R$ 0,00</output>
+                </label>
+              </div>
+              <p id="compra-resumo" class="ajuda" aria-live="polite">Selecione os números para ver o resumo da compra.</p>
+              <div class="botoes apostas-botoes">
+                <button id="btn-cadastrar" type="button" class="primario">Cadastrar aposta</button>
+                <button id="btn-conferir" type="button">Conferir apostas</button>
+              </div>
+              <div id="compra-progresso" class="progresso-compra" hidden aria-live="polite">
+                <span class="spinner" aria-hidden="true"></span>
+                <span id="compra-progresso-texto">Salvando…</span>
+              </div>
+            </fieldset>
+
+            <fieldset class="config-grupo">
+              <legend>Teimosinha</legend>
+              <label class="campo">
+                Repetir a aposta em
+                <select id="teimosinha-contestos" aria-label="Concursos da Teimosinha">
+                  <option value="1">1 concurso (sem Teimosinha)</option>
+                </select>
+              </label>
+              <p class="ajuda">A mesma combinação é usada em todos os concursos.</p>
+            </fieldset>
+
+            <fieldset class="config-grupo">
+              <legend>Bolão fictício</legend>
+              <label class="campo inline">
+                <input id="bolao-ativo" type="checkbox" /> Ativar bolão
+              </label>
+              <label class="campo">
+                Cotas
+                <input id="bolao-cotas" type="number" min="2" max="100" step="1" inputmode="numeric" value="2" />
+              </label>
+              <label class="campo">
+                Participantes (um nome por linha; opcional)
+                <textarea id="bolao-participantes" rows="3" placeholder="Ana&#10;Bruno"></textarea>
+              </label>
+              <p id="bolao-resumo" class="ajuda" aria-live="polite">Desativado — aposta individual.</p>
+            </fieldset>
+
+            <fieldset class="config-grupo ultima-compra" id="ultima-compra" hidden>
+              <legend>Última compra</legend>
+              <p id="ultima-compra-resumo" class="ajuda" aria-live="polite"></p>
+              <button id="ver-historico" type="button">Ver no histórico</button>
+            </fieldset>
+
+            <p id="apostas-status" class="mensagem" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div class="apostas-resultados">
+          <section>
+            <h3>Apostas cadastradas</h3>
+            <div id="lista-apostas" class="lista-cartoes"></div>
+          </section>
+          <section>
+            <h3>Conferência</h3>
+            <div id="resultado-conferencia" class="lista-cartoes"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="painel-historico" class="painel-aba aba-conteudo" data-area="historico" aria-label="Histórico de bilhetes e lançamentos" hidden>
+        <header class="painel-cabecalho">
+          <h2>Histórico</h2>
+          <p>Bilhetes e lançamentos financeiros reais desta sessão do navegador, em ordem cronológica.</p>
+        </header>
+
+        <p id="historico-status" class="mensagem" aria-live="polite"></p>
+
+        <fieldset class="config-grupo">
+          <legend>Consultar histórico</legend>
+          <div class="filtros-linha">
+            <label class="campo">Concurso<input id="filtro-concurso" type="number" min="1" step="1" inputmode="numeric" /></label>
+            <label class="campo">Dezenas<select id="filtro-dezenas"></select></label>
+            <label class="campo">Faixa<select id="filtro-faixa"></select></label>
+            <label class="campo">Tipo<select id="filtro-tipo"></select></label>
+            <label class="campo">De<input id="filtro-de" type="date" /></label>
+            <label class="campo">Até<input id="filtro-ate" type="date" /></label>
+          </div>
+          <div class="botoes">
+            <button id="filtro-aplicar" type="button">Aplicar filtros</button>
+            <button id="filtro-limpar" type="button">Limpar filtros</button>
+          </div>
+        </fieldset>
+
+        <div class="historico-layout">
+          <section>
+            <h3>Lançamentos financeiros</h3>
+            <div id="historico-lista" class="lista-eventos"></div>
+            <p id="historico-pagina" class="ajuda"></p>
+            <button id="historico-mais" type="button">Carregar mais</button>
+          </section>
+          <section>
+            <h3>Bilhetes comprados</h3>
+            <div id="historico-bilhetes" class="lista-eventos"></div>
+            <p id="bilhetes-pagina" class="ajuda"></p>
+            <button id="bilhetes-mais" type="button">Carregar mais bilhetes</button>
+          </section>
+        </div>
+      </section>
+
+      <section id="painel-financeiro" class="painel-aba aba-conteudo" data-area="financeiro" aria-label="Painel financeiro" hidden>
+        <header class="painel-cabecalho">
+          <h2>Financeiro</h2>
+          <p>Totais gerais do simulador e gráficos com os dados persistidos. Valores fictícios, em reais.</p>
+        </header>
+
+        <div id="financeiro-resumo" class="cards-financeiros"></div>
+
+        <fieldset class="config-grupo">
+          <legend>Filtrar gráficos</legend>
+          <div class="filtros-linha">
+            <label class="campo">Concurso<input id="filtro-financeiro-concurso" type="number" min="1" step="1" inputmode="numeric" /></label>
+            <label class="campo">De<input id="filtro-financeiro-de" type="date" /></label>
+            <label class="campo">Até<input id="filtro-financeiro-ate" type="date" /></label>
+          </div>
+          <div class="botoes">
+            <button id="filtro-financeiro-aplicar" type="button">Aplicar aos gráficos</button>
+            <button id="filtro-financeiro-limpar" type="button">Limpar</button>
+          </div>
+          <p id="financeiro-periodo" class="ajuda">Gráficos mostram todo o histórico.</p>
+        </fieldset>
+
+        <div class="graficos-layout">
+          <section class="grafico-cartao">
+            <h3>Evolução de gastos e recebimentos</h3>
+            <div id="grafico-evolucao" class="grafico"></div>
+          </section>
+          <section class="grafico-cartao">
+            <h3>Saldo acumulado</h3>
+            <div id="grafico-saldo" class="grafico"></div>
+          </section>
+          <section class="grafico-cartao">
+            <h3>Gastos por concurso</h3>
+            <div id="grafico-concursos" class="grafico"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="painel-estatisticas" class="painel-aba aba-conteudo" data-area="estatisticas" aria-label="Estatísticas descritivas" hidden>
+        <header class="painel-cabecalho">
+          <h2>Estatísticas</h2>
+          <p>Números descritivos do histórico real. Não são previsões nem promessas de resultado futuro.</p>
+        </header>
+
+        <div class="graficos-layout">
+          <section class="grafico-cartao">
+            <h3>Premiações por faixa</h3>
+            <div id="grafico-faixas" class="grafico"></div>
+          </section>
+          <section class="grafico-cartao">
+            <h3>Indicadores</h3>
+            <div id="estatisticas-lista" class="lista-estatisticas"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="painel-configuracoes" class="painel-aba aba-conteudo" data-area="configuracoes" aria-label="Configurações e backup" hidden>
+        <header class="painel-cabecalho">
+          <h2>Configurações</h2>
+          <p>Preferências da simulação e ferramentas de backup. Nada aqui altera regras oficiais da Lotofácil.</p>
+        </header>
+
+        <fieldset class="config-grupo">
+          <legend>Configuração de premiação (somente simulação)</legend>
+          <p id="config-faixas-fixas" class="ajuda"></p>
+          <p id="config-premio-maximo" class="ajuda"></p>
+          <div class="botoes">
+            <label class="campo">Prêmio máximo de 15 acertos (R$)
+              <input id="config-premio-15" type="number" min="0" step="0.01" inputmode="decimal" value="500000.00" />
+            </label>
+            <button id="config-premio-salvar" type="button">Salvar prêmio máximo</button>
+          </div>
+          <p class="ajuda">Faixas fixas de 11, 12 e 13 acertos não podem ser alteradas. Apostas antigas mantêm seus valores.</p>
+        </fieldset>
+
+        <fieldset class="config-grupo">
+          <legend>Áudio da apresentação</legend>
+          <label class="campo inline">
+            <input id="config-musica" type="checkbox" checked />
+            Música de fundo durante a extração
+          </label>
+          <label class="campo inline">
+            <input id="config-efeitos" type="checkbox" checked />
+            Efeitos sonoros
+          </label>
+          <label class="campo">Volume da música
+            <input id="config-volume-musica" type="range" min="0" max="100" step="1" value="45" />
+            <output id="config-volume-musica-valor" for="config-volume-musica">45%</output>
+          </label>
+          <label class="campo">Volume dos efeitos
+            <input id="config-volume-efeitos" type="range" min="0" max="100" step="1" value="70" />
+            <output id="config-volume-efeitos-valor" for="config-volume-efeitos">70%</output>
+          </label>
+          <p class="ajuda">Sons gerados pelo navegador, sem arquivos externos. O áudio só começa após um toque em “Iniciar sorteio”.</p>
+        </fieldset>
+
+        <fieldset class="config-grupo config-teste">
+          <legend>MODO DE TESTE — PROBABILIDADE DE CONTEMPLAÇÃO</legend>
+          <label class="campo inline">
+            <input id="config-modo-teste" type="checkbox" />
+            Ativar modo de teste visual
+          </label>
+          <label class="campo">Probabilidade de simulação
+            <input id="config-probabilidade-teste" type="range" min="1" max="100" step="1" value="25" />
+            <output id="config-probabilidade-teste-valor" for="config-probabilidade-teste">25%</output>
+          </label>
+          <p class="ajuda">A simulação afeta apenas mensagens, sons e fogos. Nunca gera prêmio, saldo, histórico ou estatística. Bilhetes realmente contemplados jamais são reclassificados.</p>
+        </fieldset>
+
+        <fieldset class="config-grupo">
+          <legend>Backup e relatórios</legend>
+          <div class="botoes">
+            <button id="exportar-json" type="button">Exportar JSON</button>
+            <button id="exportar-csv" type="button">Exportar CSV</button>
+            <label class="campo">Importar backup
+              <input id="importar-json" type="file" accept="application/json,.json" />
+            </label>
+            <label class="campo inline">
+              <input id="confirmar-importacao" type="checkbox" />
+              Confirmo a mesclagem dos dados importados
+            </label>
+          </div>
+          <p class="ajuda">A importação apenas mescla registros ausentes; nunca substitui o banco atual.</p>
+        </fieldset>
+
+        <fieldset class="config-grupo config-perigo">
+          <legend>Reiniciar simulação</legend>
+          <p class="ajuda">Apaga todos os bilhetes, sorteios, resultados, premiações, histórico financeiro e estatísticas. Suas configurações e preferências pessoais são preservadas.</p>
+          <button id="reiniciar-simulacao" type="button" class="botao-perigo">Reiniciar simulação…</button>
+        </fieldset>
+      </section>
+
+      <div id="modal-reset" class="modal-fundo" role="dialog" aria-modal="true" aria-labelledby="modal-reset-titulo" hidden>
+        <div class="modal-caixa">
+          <h2 id="modal-reset-titulo">Reiniciar simulação</h2>
+          <p id="modal-reset-aviso">Esta operação apagará permanentemente todos os bilhetes, sorteios, resultados, investimentos, premiações, histórico financeiro e estatísticas desta simulação.</p>
+          <p>Suas configurações e preferências pessoais serão preservadas.</p>
+          <p><strong>Esta operação não poderá ser desfeita.</strong></p>
+          <label class="campo" for="modal-reset-confirmar">Digite <code>REINICIAR</code> para confirmar
+            <input id="modal-reset-confirmar" type="text" autocomplete="off" spellcheck="false" />
+          </label>
+          <p id="modal-reset-erro" class="mensagem erro" role="alert" hidden></p>
+          <div class="botoes">
+            <button id="modal-reset-cancelar" type="button">Cancelar</button>
+            <button id="modal-reset-confirmar-btn" type="button" class="botao-perigo" disabled>Apagar dados da simulação</button>
+          </div>
+        </div>
+      </div>
+
+      <footer id="status" class="status" aria-live="polite">
+        Modo: Globo 3D · Ritmo: Normal (1×) · Revelados: 0/15
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

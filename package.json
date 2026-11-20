@@ -1,0 +1,27 @@
+{
+  "name": "simulador-lotofacil",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Simulador Lotofácil - versão 1.0 homologada",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}
