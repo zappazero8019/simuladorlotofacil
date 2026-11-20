@@ -44,6 +44,8 @@ export function createCelebrationOverlay({
   const box = element('div', 'celebracao-caixa');
   box.setAttribute('tabindex', '-1');
   const title = element('h2', 'celebracao-titulo');
+  const championNote = element('p', 'celebracao-campeao');
+  championNote.hidden = true;
   const notice = element('p', 'celebracao-aviso');
   notice.hidden = true;
   const winnerNote = element('p', 'celebracao-contagem');
@@ -52,7 +54,7 @@ export function createCelebrationOverlay({
   const list = element('div', 'celebracao-lista');
   const close = element('button', 'celebracao-fechar', 'Fechar');
   close.type = 'button';
-  box.append(title, notice, winnerNote, summary, list, close);
+  box.append(title, championNote, notice, winnerNote, summary, list, close);
   overlay.append(canvas, box);
   root.appendChild(overlay);
 
@@ -158,6 +160,8 @@ export function createCelebrationOverlay({
     overlay.hidden = true;
     overlay.className = 'celebracao';
     title.textContent = '';
+    championNote.textContent = '';
+    championNote.hidden = true;
     notice.textContent = '';
     notice.hidden = true;
     winnerNote.textContent = '';
@@ -180,6 +184,13 @@ export function createCelebrationOverlay({
     overlay.classList.add(totals.anyCelebration ? 'com-contemplacao' : 'sem-contemplacao');
     overlay.classList.add(`intensidade-${intensity}`);
     title.textContent = resultTitle(totals);
+    if (totals.championActive) {
+      const tie = totals.championCount > 1
+        ? ` · ${totals.championCount} bilhetes empatados` : '';
+      championNote.textContent = `${totals.championLabel ?? 'MAIOR NÚMERO DE ACERTOS'}`
+        + ` · ${totals.championScoreLabel ?? ''}${tie}`;
+      championNote.hidden = false;
+    }
     if (winnerCount > 1) {
       winnerNote.textContent = `${winnerCount} bilhetes contemplados — veja os resultados individuais abaixo.`;
       winnerNote.hidden = false;
@@ -200,6 +211,13 @@ export function createCelebrationOverlay({
       const card = element('article', `celebracao-item ${item.message === RESULT_MESSAGES.win
         ? 'item-contemplado' : 'item-nao-contemplado'}`);
       card.appendChild(element('strong', '', `Aposta #${item.betId ?? '?'} · concurso ${item.contest ?? '?'}`));
+      if (item.isChampion) {
+        card.appendChild(element(
+          'span',
+          'item-campeao',
+          `${item.championLabel ?? 'MAIOR NÚMERO DE ACERTOS'} · ${item.championScoreLabel ?? ''}`,
+        ));
+      }
       card.appendChild(element('span', '', `${item.matches} acerto(s) · ${item.message}`));
       if (item.realWin) {
         card.appendChild(element('span', 'item-valor', `Prêmio real: ${formatCurrency(item.receivedCents)}`));

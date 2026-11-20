@@ -28,15 +28,20 @@ Versão atual: **1.0.0**. Branch principal: `main`.
 - Ritmos **normal**, **acelerado** e **instantâneo**, além de controle de velocidade
   (`0,5×` a `5×`) alterável durante a apresentação.
 - Pausa, continuar, próximo número, revelar todos e reiniciar apresentação.
-- **Destaque dos acertos do primeiro bilhete durante a extração**: anel verde nas
-  bolas, brilho verde nos slots e nas células da roleta, mantidos até o reset da
-  extração. Os demais bilhetes mantêm apresentação normal.
-- **Contador em tempo real dos acertos do primeiro bilhete**, com forma singular e
-  plural (`1 número sorteado`, `2 números sorteados`). Ele é apenas visual: a
-  conferência final continua sendo feita pelo motor matemático.
+- **Destaque dos bilhetes campeões após a conferência**: todos os bilhetes empatados
+  na maior quantidade de acertos recebem identidade roxo neon (`#A855F7`) nas
+  bolas 3D, nos slots, na roleta, nos cards e no overlay. O destaque só aparece
+  depois que o concurso é conferido, marca exatamente a interseção entre o
+  resultado e cada bilhete campeão e é recalculado a cada sorteio.
+- **Contador do campeão** com `MAIOR NÚMERO DE ACERTOS · N ACERTOS`, incluindo
+  empates e `SEM BILHETE CAMPEÃO` quando não há bilhetes. Antes da conferência ele
+  mostra `Aguardando conferência`. Ele é apenas visual: a conferência final
+  continua sendo feita pelo motor matemático.
 - **Mensagem final** informando `BILHETE CONTEMPLADO!`, `N BILHETES CONTEMPLADOS!`
   ou `NENHUM BILHETE CONTEMPLADO.`, com resultados individuais consultáveis quando
-  há mais de um contemplado. A mensagem permanece aberta até o botão **Fechar**.
+  há mais de um contemplado. O rótulo de campeão é separado da mensagem de
+  premiação, sem sugerir prêmio quando não há faixa contemplada. A mensagem
+  permanece aberta até o botão **Fechar**.
 
 ### Apostas e conferência
 
@@ -69,8 +74,9 @@ Versão atual: **1.0.0**. Branch principal: `main`.
 
 - **Música de fundo contínua e calma**, procedural (Web Audio API), iniciada no
   primeiro gesto do usuário e não reiniciada a cada sorteio.
-- Efeitos sonoros procedurais, incluindo um **som exclusivo para o acerto do
-  primeiro bilhete**, distinto do som de extração.
+- Efeitos sonoros procedurais, incluindo um **cue único de campeão**, tocado uma
+  vez após a conferência e distinto do som de extração. Nenhum timbre antecipa o
+  resultado dos bilhetes durante a extração.
 - **Controles independentes** de música e efeitos (ligar/desligar e volume).
 - **Mensagens de premiação persistentes** até fechamento manual; sem ocultação
   automática.
@@ -259,15 +265,14 @@ src/
                         validação e probabilidades
   bets/                 preços, volante, cadastro, Teimosinha, bolões,
                         registro e conferência
-  draws/                sessão com resultado congelado, apresentação, ritmos e
-                        rastreador visual do primeiro bilhete
+  draws/                sessão com resultado congelado, apresentação e ritmos
   prizes/               faixas e valores simulados
   finance/              ledger e saldo fictício em centavos
   history/              serviço de histórico de concursos e bilhetes
   statistics/           indicadores e estatísticas
   persistence/          IndexedDB, esquema, IDs, backup e restauração
   settings/             preferências de áudio e modo de teste
-  results/              planejamento puro das mensagens de resultado
+  results/              apuração visual do campeão e planejamento puro das mensagens
   audio/                motor procedural, efeitos e trilha contínua
   visualization/        globo 3D, bolas, física, mistura e extração
   ui/                   interface: navegação, apostas, roleta, histórico,

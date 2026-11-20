@@ -1,3 +1,4 @@
+import { CHAMPION_LABEL, describeChampions } from './champion.js';
 import { SETTINGS_KEYS } from '../persistence/schema.js';
 import { FIXED_PRIZE_VALUES_CENTS, REFERENCE_PRIZE_VALUES_CENTS } from '../prizes/prizeValues.js';
 import { readPreferences } from '../settings/preferences.js';
@@ -65,10 +66,18 @@ function activationDecides(settings, random) {
  * somente leitura: a comemoração nunca escreve em bilhetes, prêmios, saldo,
  * histórico ou estatísticas.
  */
-export function planCelebration({ conferences = [], settings = {}, random = createTestRandom() } = {}) {
+export function planCelebration({
+  conferences = [],
+  champion = null,
+  settings = {},
+  random = createTestRandom(),
+} = {}) {
   if (!Array.isArray(conferences)) throw new TypeError('conferences deve ser um array.');
   if (typeof random !== 'function') throw new TypeError('random deve ser uma função.');
 
+  // O campeão é um dado puramente apresentacional; se não for informado, é
+  // derivado das próprias conferências sem alterar nenhuma regra do motor.
+  const championInfo = champion ?? describeChampions(conferences);
   const preferences = readPreferences(settings);
   const items = conferences.map((conference, index) => {
     const receivedCents = Number(conference?.totalPrizeCents ?? 0);
@@ -80,6 +89,9 @@ export function planCelebration({ conferences = [], settings = {}, random = crea
       betId: conference?.betId ?? null,
       contest: conference?.contest ?? null,
       matches: conference?.matches ?? 0,
+      isChampion: championInfo.active && championInfo.isBetChampion(conference?.betId),
+      championLabel: CHAMPION_LABEL,
+      championScoreLabel: championInfo.scoreLabel,
       realWin,
       simulated,
       receivedCents: realWin ? receivedCents : 0,
@@ -96,6 +108,11 @@ export function planCelebration({ conferences = [], settings = {}, random = crea
     realWinners,
     simulatedWinners,
     winnerCount: realWinners + simulatedWinners,
+    championActive: championInfo.active,
+    championCount: championInfo.count,
+    championBestMatches: championInfo.bestMatches,
+    championLabel: CHAMPION_LABEL,
+    championScoreLabel: championInfo.scoreLabel,
     testModeActive: preferences[SETTINGS_KEYS.TEST_MODE_ENABLED],
     receivedCents: items.reduce((sum, item) => sum + item.receivedCents, 0),
     fireworks: items.some((item) => item.intensity === 'grande' || item.simulated),

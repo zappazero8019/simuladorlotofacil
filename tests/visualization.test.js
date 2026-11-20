@@ -46,7 +46,7 @@ describe('visualização 3D — Fase 2A', () => {
       expect(ball.userData.number).toBe(index + 1);
       expect(ball.name).toBe(`bola-${String(index + 1).padStart(2, '0')}`);
       expect(ball.children.map((child) => child.name)).toEqual([
-        'superficie', 'faixa', 'numero', 'destaque-extracao', 'destaque-acerto-primeiro',
+        'superficie', 'faixa', 'numero', 'destaque-extracao', 'destaque-campeao',
       ]);
     }
   });

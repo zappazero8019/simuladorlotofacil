@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AUDIO_EFFECTS, createAudioEngine } from '../src/audio/index.js';
-import { planCelebration, RESULT_MESSAGES, resultTitle } from '../src/results/index.js';
+import {
+  CHAMPION_EMPTY_LABEL,
+  CHAMPION_LABEL,
+  describeChampions,
+  planCelebration,
+  RESULT_MESSAGES,
+  resultTitle,
+} from '../src/results/index.js';
 import { createCelebrationOverlay } from '../src/ui/resultCelebration.js';
 import { BALL_RADIUS } from '../src/visualization/constants.js';
 import {
@@ -174,7 +181,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('mensagem final segundo a conferência matemática', () => {
+describe('mensagem final segundo a conferência matemática — sem alterar premiação', () => {
   it('nenhum contemplado', () => {
     const plan = planCelebration({
       conferences: [conference(1, 0, 0), conference(2, 0, 4)],
@@ -182,15 +189,17 @@ describe('mensagem final segundo a conferência matemática', () => {
     });
     expect(plan.summary.winnerCount).toBe(0);
     expect(resultTitle(plan.summary)).toBe(RESULT_MESSAGES.noWinners);
+    expect(plan.summary.receivedCents).toBe(0);
   });
 
-  it('um contemplado', () => {
+  it('um contemplado mantém o valor e a faixa', () => {
     const plan = planCelebration({
       conferences: [conference(1, 700), conference(2, 0, 4)],
       settings: {},
     });
     expect(plan.summary.winnerCount).toBe(1);
     expect(resultTitle(plan.summary)).toBe('BILHETE CONTEMPLADO!');
+    expect(plan.summary.receivedCents).toBe(700);
   });
 
   it('vários contemplados com total correto', () => {
@@ -200,6 +209,7 @@ describe('mensagem final segundo a conferência matemática', () => {
     });
     expect(plan.summary.winnerCount).toBe(3);
     expect(resultTitle(plan.summary)).toBe('3 BILHETES CONTEMPLADOS!');
+    expect(plan.summary.receivedCents).toBe(2800);
   });
 
   it('simulações de teste entram na contagem sem virar prêmio real', () => {
@@ -211,6 +221,7 @@ describe('mensagem final segundo a conferência matemática', () => {
     expect(plan.summary.realWinners).toBe(0);
     expect(plan.summary.simulatedWinners).toBe(2);
     expect(resultTitle(plan.summary)).toBe('2 BILHETES CONTEMPLADOS!');
+    expect(plan.summary.receivedCents).toBe(0);
   });
 
   it('resultados individuais permanecem disponíveis quando há vários contemplados', () => {
@@ -224,6 +235,49 @@ describe('mensagem final segundo a conferência matemática', () => {
       RESULT_MESSAGES.win,
       RESULT_MESSAGES.loss,
     ]);
+  });
+});
+
+describe('identificação textual do campeão', () => {
+  const draw = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+  const conf = (betId, numbers, matches, totalPrizeCents = 0, contest = 42) => ({
+    betId, contest, numbers, drawnNumbers: draw, matches, totalPrizeCents,
+  });
+
+  it('rótulo e quantidade em caso de campeão único', () => {
+    const conferences = [
+      conf(1, [1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23], 7),
+      conf(2, [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], 7),
+    ];
+    const champion = describeChampions(conferences, draw);
+    expect(champion.count).toBe(2);
+    expect(champion.label).toBe(CHAMPION_LABEL);
+    expect(champion.scoreLabel).toBe('7 ACERTOS');
+  });
+
+  it('marca todos os empatados e não sugere prêmio quando não há faixa premiada', () => {
+    const conferences = [
+      conf(11, [1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23], 7, 0),
+      conf(12, [1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 24, 25, 8], 7, 0),
+      conf(13, [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 1, 2, 3, 4, 5], 5, 0),
+    ];
+    const champion = describeChampions(conferences, draw);
+    expect(champion.scoreLabel).toBe('7 ACERTOS');
+    expect(champion.betIds).toEqual(['11', '12']);
+    expect(champion.match).toBeUndefined();
+
+    const plan = planCelebration({ conferences, champion, settings: {}, random: () => 0.9 });
+    expect(plan.summary.anyCelebration).toBe(false);
+    expect(plan.items.filter((item) => item.isChampion).map((item) => item.betId)).toEqual([11, 12]);
+    expect(plan.items.find((item) => item.isChampion).championLabel).toBe(CHAMPION_LABEL);
+    expect(plan.items.find((item) => item.isChampion).championScoreLabel).toBe('7 ACERTOS');
+  });
+
+  it('sem bilhetes não há campeão', () => {
+    const champion = describeChampions([], draw);
+    expect(champion.active).toBe(false);
+    expect(champion.count).toBe(0);
+    expect(CHAMPION_EMPTY_LABEL).toBe('SEM BILHETE CAMPEÃO');
   });
 });
 
@@ -248,23 +302,30 @@ describe('overlay persistente com mensagem geral', () => {
     const box = findByClass(root, 'celebracao-caixa');
     expect(findByClass(box, 'celebracao-titulo').textContent).toBe(RESULT_MESSAGES.noWinners);
     expect(overlay.visible).toBe(true);
-    // Nenhum temporizador de ocultação automática é criado.
-    expect(overlay.visible).toBe(true);
     findByClass(box, 'celebracao-fechar').click();
     expect(overlay.visible).toBe(false);
     overlay.dispose();
   });
 
-  it('mostra um contemplado', () => {
+  it('mostra o rótulo de campeão e identifica todos os empatados', () => {
     const { overlay, root } = makeOverlay();
-    overlay.show(makePlan([conference(1, 700), conference(2, 0, 3)]));
+    const conferences = [
+      conference(1, 0, 7),
+      conference(2, 0, 7),
+      conference(3, 0, 5),
+    ];
+    overlay.show(makePlan(conferences));
     const box = findByClass(root, 'celebracao-caixa');
-    expect(findByClass(box, 'celebracao-titulo').textContent).toBe(RESULT_MESSAGES.win);
-    expect(findByClass(box, 'celebracao-contagem').hidden).toBe(true);
+    const note = findByClass(box, 'celebracao-campeao');
+    expect(note.hidden).toBe(false);
+    expect(note.textContent).toContain('MAIOR NÚMERO DE ACERTOS');
+    expect(note.textContent).toContain('7 ACERTOS');
+    expect(note.textContent).toContain('2 bilhetes empatados');
+    expect(findByClass(box, 'celebracao-lista').children).toHaveLength(3);
     overlay.dispose();
   });
 
-  it('informa a quantidade e mantém a lista individual para vários contemplados', () => {
+  it('mantém contagem e lista individual para vários contemplados', () => {
     const { overlay, root } = makeOverlay();
     overlay.show(makePlan([
       conference(1, 700),
@@ -277,15 +338,15 @@ describe('overlay persistente com mensagem geral', () => {
     const note = findByClass(box, 'celebracao-contagem');
     expect(note.hidden).toBe(false);
     expect(note.textContent).toContain('3 bilhetes contemplados');
-    expect(note.textContent).toContain('resultados individuais');
     expect(findByClass(box, 'celebracao-lista').children).toHaveLength(4);
     overlay.dispose();
   });
 });
 
-describe('efeito sonoro exclusivo do acerto do primeiro bilhete', () => {
+describe('cue único do campeão', () => {
   it('é um efeito registrado, distinto de extract e reveal', () => {
-    expect(AUDIO_EFFECTS).toContain('match');
+    expect(AUDIO_EFFECTS).toContain('champion');
+    expect(AUDIO_EFFECTS).not.toContain('match');
     const { engine, contexts } = makeEngine();
     engine.configure({ musicEnabled: false, sfxEnabled: true });
 
@@ -295,24 +356,21 @@ describe('efeito sonoro exclusivo do acerto do primeiro bilhete', () => {
     engine.playEffect('reveal');
     const revealFrequencies = contexts[0].oscillators.map((oscillator) => oscillator.frequency.value);
     contexts[0].oscillators.length = 0;
-    engine.playEffect('match');
-    const matchFrequencies = contexts[0].oscillators.map((oscillator) => oscillator.frequency.value);
+    engine.playEffect('champion');
+    const championFrequencies = contexts[0].oscillators.map((oscillator) => oscillator.frequency.value);
 
-    expect(matchFrequencies).toEqual([659.25, 987.77]);
-    expect(matchFrequencies).not.toEqual(extractFrequencies);
-    expect(matchFrequencies).not.toEqual(revealFrequencies);
+    expect(championFrequencies).toEqual([659.25, 987.77]);
+    expect(championFrequencies).not.toEqual(extractFrequencies);
+    expect(championFrequencies).not.toEqual(revealFrequencies);
     engine.dispose();
   });
 
-  it('limita repetições muito rápidas sem travar acertos seguintes', () => {
+  it('toca uma vez por chamada, sem limitador de repetição', () => {
     const { engine, contexts } = makeEngine();
     engine.configure({ musicEnabled: false, sfxEnabled: true });
-    expect(engine.playEffect('match')).toBe(true);
+    expect(engine.playEffect('champion')).toBe(true);
     expect(contexts[0].oscillators).toHaveLength(2);
-    expect(engine.playEffect('match')).toBe(false);
-    expect(contexts[0].oscillators).toHaveLength(2);
-    contexts[0].currentTime += 0.2;
-    expect(engine.playEffect('match')).toBe(true);
+    expect(engine.playEffect('champion')).toBe(true);
     expect(contexts[0].oscillators).toHaveLength(4);
     engine.dispose();
   });
@@ -324,22 +382,22 @@ describe('efeito sonoro exclusivo do acerto do primeiro bilhete', () => {
     expect(engine.isMusicPlaying).toBe(true);
     const oscillatorsBefore = contexts[0].oscillators.length;
 
-    expect(engine.playEffect('match')).toBe(true);
+    expect(engine.playEffect('champion')).toBe(true);
     expect(engine.isMusicPlaying).toBe(true);
     expect(timer.count).toBeGreaterThan(0);
     expect(contexts[0].oscillators.length).toBeGreaterThan(oscillatorsBefore);
 
     engine.configure({ sfxEnabled: false });
     expect(engine.isMusicPlaying).toBe(true);
-    expect(engine.playEffect('match')).toBe(false);
+    expect(engine.playEffect('champion')).toBe(false);
     engine.configure({ musicEnabled: false });
     expect(engine.isMusicPlaying).toBe(false);
     engine.dispose();
   });
 });
 
-describe('override de acerto na extração 3D', () => {
-  it('usa o terceiro argumento sem depender da carteira de apostas', () => {
+describe('aplicação do destaque 3D pós-conferência', () => {
+  it('usa highlightChampions sem depender da carteira de apostas', () => {
     const balls = createBalls();
     const physics = createPhysicsWorld({
       positions: balls.children.map((ball) => ball.position.clone()),
@@ -348,12 +406,15 @@ describe('override de acerto na extração 3D', () => {
     });
     const extraction = createExtractionController({ balls, physics });
 
-    extraction.reveal(5, 0, true);
-    extraction.reveal(6, 1, false);
+    extraction.reveal(5, 0);
+    extraction.reveal(6, 1);
     for (let frame = 0; frame < 12; frame += 1) extraction.update(0.02);
+    expect(balls.children[4].userData.matchHighlight.visible).toBe(false);
 
+    extraction.highlightChampions([5]);
     expect(balls.children[4].userData.matchHighlight.visible).toBe(true);
     expect(balls.children[5].userData.matchHighlight.visible).toBe(false);
+    expect(balls.children[4].userData.matchHighlight.material.color.getHex()).toBe(0xa855f7);
     extraction.dispose();
   });
 });

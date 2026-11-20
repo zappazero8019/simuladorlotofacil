@@ -26,6 +26,7 @@ export function createDeferredVisualization(
     extraction: {
       reveal: (...args) => enqueue('extractionReveal', args),
       reset: (...args) => enqueue('extractionReset', args),
+      highlightChampions: (...args) => enqueue('extractionHighlightChampions', args),
     },
     startMixing: (...args) => enqueue('startMixing', args),
     stopMixing: (...args) => enqueue('stopMixing', args),
@@ -54,7 +55,9 @@ export function createDeferredVisualization(
   function apply(method, args) {
     if (method === 'extractionReveal') instance.extraction.reveal(...args);
     else if (method === 'extractionReset') instance.extraction.reset(...args);
-    else instance[method]?.(...args);
+    else if (method === 'extractionHighlightChampions') {
+      instance.extraction.highlightChampions?.(...args);
+    } else instance[method]?.(...args);
   }
 
   function load() {

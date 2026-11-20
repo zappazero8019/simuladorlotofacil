@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { createFirstBetTracker } from '../src/draws/firstBetTracker.js';
 import { createRoleta } from '../src/ui/roleta.js';
 import { BALL_RADIUS } from '../src/visualization/constants.js';
 import {
@@ -76,170 +75,90 @@ function cellAt(container, index) {
   return container.children[0].children[1].children[index];
 }
 
-const FIRST = [3, 7, 12, 1, 19];
-const SECOND = [25, 24, 23, 22, 21];
-
-describe('primeiro bilhete como referência visual', () => {
-  it('reconhece somente os números do primeiro bilhete', () => {
-    const tracker = createFirstBetTracker(() => FIRST);
-    expect(tracker.begin()).toBe(true);
-    for (const number of FIRST) expect(tracker.isMatch(number)).toBe(true);
-    for (const number of SECOND) expect(tracker.isMatch(number)).toBe(false);
-    expect(tracker.isMatch(2)).toBe(false);
+function makeRoleta({ reducedMotion = false } = {}) {
+  const container = makeElement();
+  const timer = fakeTimer();
+  const audio = { playEffect: vi.fn(() => true) };
+  const roleta = createRoleta(container, {
+    doc: { createElement: () => makeElement() },
+    timer,
+    audio,
+    reducedMotion,
   });
+  return { roleta, timer, audio, container };
+}
 
-  it('não usa o segundo bilhete nem o contador visual como referência', () => {
-    let source = { first: FIRST, second: SECOND };
-    const tracker = createFirstBetTracker(() => source.first);
-    tracker.begin();
-    expect(tracker.record(25)).toBe(false);
-    expect(tracker.count).toBe(0);
-    expect(tracker.label()).toBe('0 números sorteados');
-    source = { first: SECOND, second: FIRST };
-    expect(tracker.isMatch(25)).toBe(false);
-    expect(tracker.numbers).toEqual(FIRST);
+function makeExtraction({ instant = false } = {}) {
+  const balls = createBalls();
+  const physics = createPhysicsWorld({
+    positions: balls.children.map((ball) => ball.position.clone()),
+    radius: BALL_RADIUS,
+    random: createSeededRandom(97),
   });
+  const extraction = createExtractionController({ balls, physics, duration: 0.05 });
+  if (instant) extraction.setInstant(true);
+  return { balls, extraction };
+}
 
-  it('registra cada acerto uma única vez, preservando a ordem da extração', () => {
-    const tracker = createFirstBetTracker(() => FIRST);
-    tracker.begin();
-    expect(tracker.record(7)).toBe(true);
-    expect(tracker.record(7)).toBe(false);
-    expect(tracker.record(3)).toBe(true);
-    expect(tracker.record(99)).toBe(false);
-    expect(tracker.matches).toEqual([7, 3]);
-    expect(tracker.count).toBe(2);
-  });
-
-  it('pluraliza o contador de 0 para 1 e para vários', () => {
-    const tracker = createFirstBetTracker(() => FIRST);
-    tracker.begin();
-    expect(tracker.label()).toBe('0 números sorteados');
-    tracker.record(3);
-    expect(tracker.label()).toBe('1 número sorteado');
-    tracker.record(7);
-    tracker.record(12);
-    expect(tracker.label()).toBe('3 números sorteados');
-  });
-
-  it('permanece inativo quando não há bilhete cadastrado', () => {
-    const tracker = createFirstBetTracker(() => null);
-    expect(tracker.begin()).toBe(false);
-    expect(tracker.isMatch(3)).toBe(false);
-    expect(tracker.record(3)).toBe(false);
-    expect(tracker.label()).toBe('0 números sorteados');
-  });
-
-  it('filtra números inválidos e remove duplicatas da referência', () => {
-    const tracker = createFirstBetTracker(() => [3, 3, 0, 26, 7, '7', 12]);
-    tracker.begin();
-    expect(tracker.numbers).toEqual([3, 7, 12]);
-    expect(tracker.active).toBe(true);
-  });
-
-  it('reset limpa os acertos e recaptura a referência atual', () => {
-    let first = FIRST;
-    const tracker = createFirstBetTracker(() => first);
-    tracker.begin();
-    tracker.record(3);
-    first = SECOND;
-    tracker.reset();
-    expect(tracker.count).toBe(0);
-    expect(tracker.isMatch(3)).toBe(false);
-    expect(tracker.isMatch(25)).toBe(true);
-  });
-});
-
-describe('destaque e som do acerto na roleta', () => {
-  function makeRoleta({ matchedNumbers = [], reducedMotion = false } = {}) {
-    const container = makeElement();
-    const timer = fakeTimer();
-    const audio = { playEffect: vi.fn(() => true) };
-    const onMatch = vi.fn();
-    const roleta = createRoleta(container, {
-      doc: { createElement: () => makeElement() },
-      timer,
-      audio,
-      reducedMotion,
-      isMatch: (number) => matchedNumbers.includes(number),
-      onMatch,
-    });
-    return { roleta, timer, audio, onMatch, container };
-  }
-
-  it('aplica brilho verde e usa o som exclusivo quando o número é do primeiro bilhete', () => {
-    const { roleta, timer, audio, onMatch, container } = makeRoleta({ matchedNumbers: [3] });
+describe('extração neutra na roleta', () => {
+  it('não antecipa campeão nem toca timbre exclusivo durante a extração', () => {
+    const { roleta, timer, audio, container } = makeRoleta();
     roleta.setSpeed(5);
     expect(roleta.reveal(3, 0, { presentationMode: 'normal', speed: 5 })).toBe(true);
     for (let elapsed = 0; elapsed < 30000 && roleta.spinning; elapsed += 1) timer.advance(1);
 
     expect(roleta.spinning).toBe(false);
     expect(cellAt(container, 0).classList.contains('revelada')).toBe(true);
-    expect(cellAt(container, 0).classList.contains('acerto-primeiro')).toBe(true);
-    expect(cellAt(container, 0).getAttribute('aria-label')).toContain('acerto do primeiro bilhete');
-    expect(onMatch).toHaveBeenCalledTimes(1);
-    expect(onMatch).toHaveBeenCalledWith(3);
-    expect(audio.playEffect).toHaveBeenCalledWith('match');
-    expect(audio.playEffect).not.toHaveBeenCalledWith('reveal');
-  });
-
-  it('mantém aparência e som normais para número que não é do primeiro bilhete', () => {
-    const { roleta, timer, audio, onMatch, container } = makeRoleta({ matchedNumbers: [3] });
-    roleta.setSpeed(5);
-    roleta.reveal(4, 1, { presentationMode: 'normal', speed: 5 });
-    for (let elapsed = 0; elapsed < 30000 && roleta.spinning; elapsed += 1) timer.advance(1);
-
-    expect(cellAt(container, 1).classList.contains('acerto-primeiro')).toBe(false);
-    expect(onMatch).not.toHaveBeenCalled();
+    expect(cellAt(container, 0).classList.contains('campeao')).toBe(false);
+    expect(cellAt(container, 0).getAttribute('aria-label')).not.toContain('campeão');
     expect(audio.playEffect).toHaveBeenCalledWith('reveal');
     expect(audio.playEffect).not.toHaveBeenCalledWith('match');
+    expect(audio.playEffect).not.toHaveBeenCalledWith('champion');
   });
 
-  it('notifica o acerto também na revelação instantânea, sem som de giro', () => {
-    const { roleta, audio, onMatch, container } = makeRoleta({ matchedNumbers: [7] });
-    roleta.setPresentationMode('instantaneo');
-    roleta.reveal(7, 2, { presentationMode: 'instantaneo', instant: true });
-    expect(cellAt(container, 2).classList.contains('acerto-primeiro')).toBe(true);
-    expect(onMatch).toHaveBeenCalledWith(7);
-    expect(audio.playEffect).not.toHaveBeenCalled();
+  it('aplica roxo e ARIA somente aos números revelados dos campeões', () => {
+    const { roleta, timer, audio, container } = makeRoleta();
+    roleta.setSpeed(5);
+    for (const [number, index] of [[3, 0], [4, 1], [7, 2]]) {
+      roleta.reveal(number, index, { presentationMode: 'normal', speed: 5 });
+      for (let elapsed = 0; elapsed < 30000 && roleta.spinning; elapsed += 1) timer.advance(1);
+    }
+
+    roleta.markChampions([3, 7]);
+    expect(cellAt(container, 0).classList.contains('campeao')).toBe(true);
+    expect(cellAt(container, 0).getAttribute('aria-label')).toContain('maior número de acertos');
+    expect(cellAt(container, 1).classList.contains('campeao')).toBe(false);
+    expect(cellAt(container, 2).classList.contains('campeao')).toBe(true);
+    // O destaque é puramente visual: nenhum som novo é disparado aqui.
+    expect(audio.playEffect).not.toHaveBeenCalledWith('champion');
   });
 
-  it('remove o destaque ao reiniciar', () => {
-    const { roleta, onMatch, container } = makeRoleta({ matchedNumbers: [7] });
+  it('marca também na revelação instantânea e limpa ao reiniciar', () => {
+    const { roleta, container } = makeRoleta();
     roleta.setPresentationMode('instantaneo');
     roleta.reveal(7, 2, { presentationMode: 'instantaneo', instant: true });
-    expect(onMatch).toHaveBeenCalledTimes(1);
+    roleta.markChampions([7]);
+    expect(cellAt(container, 2).classList.contains('campeao')).toBe(true);
+
     roleta.reset();
-    expect(cellAt(container, 2).classList.contains('acerto-primeiro')).toBe(false);
-    // O rastreador é quem deduplica; a roleta notifica uma vez por revelação.
-    roleta.reveal(7, 2, { presentationMode: 'instantaneo', instant: true });
-    expect(onMatch).toHaveBeenCalledTimes(2);
+    expect(cellAt(container, 2).classList.contains('campeao')).toBe(false);
+    expect(cellAt(container, 2).classList.contains('revelada')).toBe(false);
   });
 });
 
-describe('destaque 3D do primeiro bilhete', () => {
-  it('ativa o anel verde apenas nas bolas do primeiro bilhete', () => {
-    const balls = createBalls();
-    const physics = createPhysicsWorld({
-      positions: balls.children.map((ball) => ball.position.clone()),
-      radius: BALL_RADIUS,
-      random: createSeededRandom(97),
-    });
-    const matched = new Set([3, 7]);
-    const extraction = createExtractionController({
-      balls,
-      physics,
-      duration: 0.05,
-      isMatch: (number) => matched.has(number),
-    });
-
-    for (const number of [3, 4, 7]) {
-      const index = [3, 4, 7].indexOf(number);
+describe('destaque 3D somente após conferência', () => {
+  it('revela sem anel de campeão e aplica o destaque depois, sob demanda', () => {
+    const { balls, extraction } = makeExtraction();
+    for (const [number, index] of [[3, 0], [4, 1], [7, 2]]) {
       expect(extraction.reveal(number, index)).toBe(true);
       for (let frame = 0; frame < 8; frame += 1) extraction.update(0.02);
     }
 
-    // O anel verde persiste em cada acerto, independente da última bola focada.
+    expect(balls.children[2].userData.matchHighlight.visible).toBe(false);
+    expect(balls.children[3].userData.matchHighlight.visible).toBe(false);
+    expect(balls.children[6].userData.matchHighlight.visible).toBe(false);
+
+    extraction.highlightChampions([3, 7]);
     expect(balls.children[2].userData.matchHighlight.visible).toBe(true);
     expect(balls.children[3].userData.matchHighlight.visible).toBe(false);
     expect(balls.children[6].userData.matchHighlight.visible).toBe(true);
@@ -254,40 +173,43 @@ describe('destaque 3D do primeiro bilhete', () => {
   });
 
   it('também destaca no modo instantâneo, sem animação', () => {
-    const balls = createBalls();
-    const physics = createPhysicsWorld({
-      positions: balls.children.map((ball) => ball.position.clone()),
-      radius: BALL_RADIUS,
-      random: createSeededRandom(31),
-    });
-    const extraction = createExtractionController({
-      balls,
-      physics,
-      isMatch: (number) => number === 12,
-    });
-    extraction.setInstant(true);
+    const { balls, extraction } = makeExtraction({ instant: true });
     extraction.reveal(12, 0);
     extraction.reveal(13, 1);
+    extraction.highlightChampions([12]);
     expect(balls.children[11].userData.matchHighlight.visible).toBe(true);
     expect(balls.children[12].userData.matchHighlight.visible).toBe(false);
     extraction.dispose();
   });
+
+  it('aceita override explícito para usos isolados sem carteira de apostas', () => {
+    const { balls, extraction } = makeExtraction();
+    extraction.reveal(5, 0, true);
+    extraction.reveal(6, 1, false);
+    for (let frame = 0; frame < 12; frame += 1) extraction.update(0.02);
+    expect(balls.children[4].userData.matchHighlight.visible).toBe(true);
+    expect(balls.children[5].userData.matchHighlight.visible).toBe(false);
+    extraction.dispose();
+  });
 });
 
-describe('integração do contador e dos estilos', () => {
-  it('expõe o contador na área de sorteio', () => {
+describe('identidade visual roxo neon', () => {
+  it('expõe o contador de campeão na área de sorteio', () => {
     const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
     expect(html).toContain('id="contador-primeiro-bilhete"');
-    expect(html).toContain('0 números sorteados');
-    expect(html).toContain('Primeiro bilhete:');
+    expect(html).toContain('Aguardando conferência');
+    expect(html).toContain('Bilhete campeão:');
   });
 
-  it('define brilho verde persistente sem substituir os estilos normais', () => {
+  it('usa roxo neon nos slots, roleta, contador e cards sem manter o verde antigo', () => {
     const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
-    expect(css).toContain('.resultado-slot.acerto-primeiro');
-    expect(css).toContain('.celula.acerto-primeiro');
-    expect(css).toContain('#4ade80');
-    expect(css).toContain('.contador-primeiro-bilhete');
-    expect(css).toMatch(/prefers-reduced-motion[\s\S]*\.resultado-slot\.acerto-primeiro/);
+    expect(css).toContain('.resultado-slot.campeao');
+    expect(css).toContain('.celula.campeao');
+    expect(css).toContain('.contador-campeao');
+    expect(css).toContain('.aposta-campea-selo');
+    expect(css).toContain('#a855f7');
+    expect(css).toContain('color: #ffffff');
+    expect(css).not.toContain('acerto-primeiro');
+    expect(css).toMatch(/prefers-reduced-motion[\s\S]*\.resultado-slot\.campeao/);
   });
 });

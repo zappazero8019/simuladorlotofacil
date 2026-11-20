@@ -271,37 +271,37 @@ button.primario:hover:not(:disabled) {
   to { transform: scale(1); opacity: 1; }
 }
 
-/* Número do primeiro bilhete: verde intenso e brilho persistente até o reset. */
-.resultado-slot.acerto-primeiro {
-  border-color: #4ade80;
-  background: linear-gradient(180deg, #166534, #052e16);
-  color: #bbf7d0;
-  box-shadow: 0 0 0.85rem rgba(74, 222, 128, 0.6), inset 0 0 0.5rem rgba(34, 197, 94, 0.35);
-  animation: acerto-primeiro 520ms ease-out;
+/* Números dos bilhetes campeões: roxo neon, aplicado só após a conferência. */
+.resultado-slot.campeao {
+  border-color: #a855f7;
+  background: linear-gradient(180deg, #581c87, #2e1065);
+  color: #ffffff;
+  box-shadow: 0 0 0.85rem rgba(168, 85, 247, 0.55), inset 0 0 0.5rem rgba(192, 132, 252, 0.3);
+  animation: campeao 520ms ease-out;
 }
 
-@keyframes acerto-primeiro {
-  0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.9); }
-  50% { box-shadow: 0 0 1.3rem 0.35rem rgba(74, 222, 128, 0.55); }
-  100% { box-shadow: 0 0 0.85rem 0 rgba(74, 222, 128, 0.6); }
+@keyframes campeao {
+  0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.8); }
+  50% { box-shadow: 0 0 1.3rem 0.35rem rgba(168, 85, 247, 0.45); }
+  100% { box-shadow: 0 0 0.85rem 0 rgba(168, 85, 247, 0.55); }
 }
 
-.contador-primeiro-bilhete {
+.contador-campeao {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.35rem 0.8rem;
   padding: 0.35rem 0.6rem;
-  border: 1px solid rgba(74, 222, 128, 0.35);
+  border: 1px solid rgba(168, 85, 247, 0.4);
   border-radius: 0.5rem;
-  background: rgba(20, 83, 45, 0.28);
-  color: #bbf7d0;
+  background: rgba(88, 28, 135, 0.26);
+  color: #f5d0fe;
   font-size: clamp(0.72rem, 2vw, 0.9rem);
 }
 
-.contador-primeiro-bilhete strong {
-  color: #86efac;
+.contador-campeao strong {
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
 }
 
@@ -413,18 +413,18 @@ button.primario:hover:not(:disabled) {
   animation: revelar calc(0.45s / var(--velocidade, 1)) ease-out both;
 }
 
-/* Acerto do primeiro bilhete na roleta: verde distinto do teal normal. */
-.celula.acerto-primeiro {
-  border-color: #4ade80;
-  background: linear-gradient(180deg, #166534, #052e16);
+/* Campeão na roleta: roxo neon, aplicado após a conferência do concurso. */
+.celula.campeao {
+  border-color: #a855f7;
+  background: linear-gradient(180deg, #581c87, #2e1065);
   box-shadow:
-    0 0 1.1rem rgba(74, 222, 128, 0.55),
-    inset 0 0 1rem rgba(34, 197, 94, 0.35);
+    0 0 1.1rem rgba(168, 85, 247, 0.5),
+    inset 0 0 1rem rgba(168, 85, 247, 0.28);
 }
 
-.celula.acerto-primeiro .numero {
-  color: #bbf7d0;
-  text-shadow: 0 0 0.7rem rgba(74, 222, 128, 0.75);
+.celula.campeao .numero {
+  color: #ffffff;
+  text-shadow: 0 0 0.7rem rgba(192, 132, 252, 0.8);
 }
 
 @keyframes revelar {
@@ -1413,6 +1413,44 @@ button.numero-botao:disabled {
   border-color: rgba(148, 163, 184, 0.3);
 }
 
+.celebracao-item.item-campeao {
+  border-color: #a855f7;
+  box-shadow: 0 0 0.7rem rgba(168, 85, 247, 0.3);
+  color: #ffffff;
+}
+
+.celebracao-campeao {
+  margin: 0.45rem 0 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  border-radius: 0.45rem;
+  background: rgba(88, 28, 135, 0.3);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.aposta-cartao.aposta-campea,
+.conferencia-cartao.conferencia-campea {
+  border-color: #a855f7;
+  box-shadow: 0 0 0.7rem rgba(168, 85, 247, 0.32);
+}
+
+.aposta-campea-selo {
+  margin: 0.35rem 0;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.aposta-numeros .numero-campeao {
+  color: #ffffff;
+  border-radius: 0.25rem;
+  background: rgba(168, 85, 247, 0.4);
+  box-shadow: 0 0 0.4rem rgba(168, 85, 247, 0.5);
+  padding: 0 0.1rem;
+}
+
 .item-valor {
   color: #5eead4;
 }
@@ -1456,8 +1494,8 @@ button.numero-botao:disabled {
   .celula.revelada .numero.entrando,
   .resultado-slot.preenchido,
   .resultado-slot.destaque,
-  .resultado-slot.acerto-primeiro,
-  .celula.acerto-primeiro,
+  .resultado-slot.campeao,
+  .celula.campeao,
   .celebracao-caixa {
     animation: none;
   }

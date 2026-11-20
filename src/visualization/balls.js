@@ -71,10 +71,10 @@ export function createBalls({ lowPower = false } = {}) {
     opacity: 0.88,
     depthWrite: false,
   });
-  // Anel separado para os números do primeiro bilhete: material próprio para
-  // não alterar a cor do destaque comum das demais bolas extraídas.
-  const matchMaterial = new THREE.MeshBasicMaterial({
-    color: 0x4ade80,
+  // Anel roxo neon exclusivo dos números dos bilhetes campeões: material
+  // próprio para não alterar o destaque comum das demais bolas extraídas.
+  const championMaterial = new THREE.MeshBasicMaterial({
+    color: 0xa855f7,
     transparent: true,
     opacity: 0.95,
     depthWrite: false,
@@ -123,8 +123,8 @@ export function createBalls({ lowPower = false } = {}) {
     ball.add(highlight);
     ball.userData.highlight = highlight;
 
-    const matchHighlight = new THREE.Mesh(highlightGeometry, matchMaterial);
-    matchHighlight.name = 'destaque-acerto-primeiro';
+    const matchHighlight = new THREE.Mesh(highlightGeometry, championMaterial);
+    matchHighlight.name = 'destaque-campeao';
     matchHighlight.scale.setScalar(1.2);
     matchHighlight.visible = false;
     ball.add(matchHighlight);

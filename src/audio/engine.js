@@ -7,7 +7,7 @@ export const AUDIO_EFFECTS = Object.freeze([
   'slowdown',
   'extract',
   'reveal',
-  'match',
+  'champion',
   'last',
   'result',
   'noPrize',
@@ -17,9 +17,8 @@ export const AUDIO_EFFECTS = Object.freeze([
 
 // Trilha original e instrumental: compasso lento, registro médio-baixo e seno
 // suave. Não há percussão, ruído nem ataques bruscos na música de fundo.
-// Intervalo mínimo entre dois toques de acerto do primeiro bilhete. Mesmo no
-// ritmo acelerado isso evita sobreposição com a própria confirmação da parada.
-const MATCH_MIN_INTERVAL_SECONDS = 0.09;
+// O resultado dos bilhetes só é conhecido após a conferência. O cue de campeão
+// é tocado uma única vez no anúncio, nunca durante a extração.
 
 const LOOP_STEP_SECONDS = 0.42;
 const LOOP_STEPS = 8;
@@ -115,7 +114,6 @@ export function createAudioEngine({
   let musicStep = 0;
   let musicWanted = false;
   let disposed = false;
-  let lastMatchAt = -Infinity;
   const pauseReasons = new Set();
 
   function audioTime() {
@@ -398,12 +396,8 @@ export function createAudioEngine({
         scheduleTone({ frequency: 880, start: start + 0.06, duration: 0.24, gain: 0.1, type: 'sine' });
         scheduleTone({ frequency: 1318.5, start: start + 0.09, duration: 0.2, gain: 0.05, type: 'sine' });
         break;
-      // Acerto do primeiro bilhete: dois sinos curtos e graves, distintos do
-      // som de extração e da confirmação normal, com limitador de repetição.
-      case 'match': {
-        const now = audioTime();
-        if (now - lastMatchAt < MATCH_MIN_INTERVAL_SECONDS) return false;
-        lastMatchAt = now;
+      // Cue único dos bilhetes campeões, disparado somente após a conferência.
+      case 'champion':
         scheduleTone({
           frequency: 659.25, start, duration: 0.18, gain: 0.085,
           type: 'sine', attack: 0.008, release: 0.11,
@@ -413,7 +407,6 @@ export function createAudioEngine({
           type: 'sine', attack: 0.008, release: 0.14,
         });
         break;
-      }
       case 'last':
         [659.25, 830.61, 987.77, 1318.5].forEach((frequency, index) => scheduleTone({
           frequency, start: start + index * 0.07, duration: 0.3, gain: 0.1, type: 'triangle',

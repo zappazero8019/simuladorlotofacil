@@ -48,7 +48,7 @@ function setHighlight(ball, visible, pulse = 0) {
   highlight.scale.setScalar(1 + pulse);
 }
 
-/** Anel verde exclusivo dos números pertencentes ao primeiro bilhete. */
+/** Anel roxo neon exclusivo dos números dos bilhetes campeões. */
 function setMatchHighlight(ball, visible, pulse = 0) {
   const highlight = ball?.userData?.matchHighlight;
   if (!highlight) return;
@@ -107,9 +107,10 @@ export function createExtractionController({
   }
 
   /**
-   * `matchOverride` permite à interface informar o acerto do primeiro bilhete
-   * sem acoplar este módulo à carteira de apostas. Sem override, vale o
-   * `isMatch` fornecido na criação (útil em testes e usos isolados).
+   * `matchOverride` permite informar um destaque pós-conferência sem acoplar
+   * este módulo à carteira de apostas. Sem override, vale o `isMatch`
+   * fornecido na criação (útil em testes e usos isolados). Durante a extração
+   * normal a interface não informa override, para não vazar o resultado.
    */
   function reveal(number, index, matchOverride = null) {
     if (disposed || !Number.isInteger(number) || number < 1 || number > BALL_COUNT) {
@@ -211,6 +212,16 @@ export function createExtractionController({
     highlightedBall = null;
   }
 
+  /** Aplica o destaque somente após a conferência; nunca altera o resultado. */
+  function highlightChampions(numbers = []) {
+    const champions = new Set(Array.isArray(numbers) ? numbers.map(Number) : []);
+    for (const [number, index] of extracted) {
+      const ball = balls.children[indexByNumber.get(number)];
+      if (!ball) continue;
+      setMatchHighlight(ball, champions.has(number));
+    }
+  }
+
   function setPaused(value) {
     paused = Boolean(value);
   }
@@ -275,6 +286,7 @@ export function createExtractionController({
     reveal,
     update,
     reset,
+    highlightChampions,
     setPaused,
     setDuration,
     setSpeed,

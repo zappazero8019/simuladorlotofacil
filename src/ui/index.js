@@ -1,10 +1,14 @@
-import { createFirstBetTracker } from '../draws/firstBetTracker.js';
 import { createDrawSession } from '../draws/session.js';
 import { createShowController } from '../draws/show.js';
 import { formatSpeed, PRESENTATION_MODE_CONFIG } from '../draws/presentationModes.js';
 import { EXTRACTION_SIZE } from '../visualization/extraction.js';
 import { createAudioEngine } from '../audio/index.js';
-import { createTestRandom, planCelebration } from '../results/index.js';
+import {
+  CHAMPION_EMPTY_LABEL,
+  createTestRandom,
+  describeChampions,
+  planCelebration,
+} from '../results/index.js';
 import { readPreferences } from '../settings/preferences.js';
 import { createRoleta } from './roleta.js';
 import { createBetsPanel } from './betsPanel.js';
@@ -30,30 +34,40 @@ export function createInterface({ visualization, root = document, history = null
   let preferences = readPreferences();
   const reducedMotion = Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
-  // Referência visual do primeiro bilhete. O contador, o brilho verde e o som
-  // exclusivo são apenas apresentação: a conferência final continua integralmente
-  // em `bets.registerDrawResult()`.
+  // Destaque dos bilhetes campeões: estado puramente apresentacional, derivado
+  // das conferências já calculadas. Nenhuma pontuação é antecipada na extração.
   let bets = null;
-  const firstBet = createFirstBetTracker(() => bets?.getFirstBet?.()?.numbers ?? null);
-  const firstBetCounter = find('#contador-primeiro-bilhete');
+  let champion = describeChampions([]);
+  let replayChampion = null;
+  const championCounter = find('#contador-primeiro-bilhete');
 
-  function updateFirstBetCounter() {
-    if (firstBetCounter) firstBetCounter.textContent = firstBet.label();
+  function applyChampion(next, { conferenced = true } = {}) {
+    champion = next && typeof next.isBetChampion === 'function'
+      ? next
+      : describeChampions([]);
+    bets?.setChampion?.(champion);
+    if (championCounter) {
+      championCounter.textContent = champion.active
+        ? `${champion.label}: ${champion.scoreLabel}`
+        : conferenced ? CHAMPION_EMPTY_LABEL : 'Aguardando conferência';
+    }
+    const highlighted = champion.matchedNumbers;
+    roleta.markChampions(highlighted);
+    visualization.extraction.highlightChampions(highlighted);
+    for (const slot of resultSlots) {
+      const number = Number(slot.textContent);
+      slot.classList.toggle('campeao', champion.active && highlighted.includes(number));
+    }
   }
 
-  function beginFirstBet() {
-    firstBet.begin();
-    updateFirstBetCounter();
+  function clearChampion() {
+    applyChampion(describeChampions([]), { conferenced: false });
   }
 
   const celebration = createCelebrationOverlay({ root: root.body ?? root });
   const roleta = createRoleta(find('#roleta'), {
     audio,
     reducedMotion,
-    isMatch: (number) => firstBet.isMatch(number),
-    onMatch(number) {
-      if (firstBet.record(number)) updateFirstBetCounter();
-    },
   });
 
   const results = find('#resultados-globo');
@@ -72,12 +86,6 @@ export function createInterface({ visualization, root = document, history = null
     if (!slot) return;
     slot.textContent = pad(number);
     slot.classList.add('preenchido');
-    if (firstBet.isMatch(number)) {
-      slot.classList.add('acerto-primeiro');
-      // Na roleta o número só aparece quando o giro para; o contador acompanha
-      // esse instante via `onMatch`. No globo a bola já chegou ao destaque.
-      if (show.mode !== 'roleta' && firstBet.record(number)) updateFirstBetCounter();
-    }
     for (const other of resultSlots) other.classList.remove('ultimo');
     slot.classList.add('ultimo');
     if (!state.instant && !state.instantMode) {
@@ -92,17 +100,19 @@ export function createInterface({ visualization, root = document, history = null
   function resetShared() {
     for (const slot of resultSlots) {
       slot.textContent = '--';
-      slot.classList.remove('preenchido', 'destaque', 'ultimo', 'acerto-primeiro');
+      slot.classList.remove('preenchido', 'destaque', 'ultimo', 'campeao');
     }
-    // Todo reset de view reinicia a apresentação: o contador e a referência
-    // visual acompanham essa nova extração, sem tocar na conferência final.
-    beginFirstBet();
+    // Todo reset de view inicia uma nova extração. O destaque só voltará depois
+    // da conferência deste concurso; a conferência matemática não é alterada.
+    clearChampion();
   }
 
   const views = {
     globo: {
       reveal(number, index, state) {
-        visualization.extraction.reveal(number, index, firstBet.isMatch(number));
+        // Nenhum override de destaque durante a extração: o resultado dos
+        // bilhetes ainda não foi conferido neste concurso.
+        visualization.extraction.reveal(number, index);
         revealShared(number, index, state);
       },
       startSpin() {
@@ -209,7 +219,7 @@ export function createInterface({ visualization, root = document, history = null
         // `last` são disparados quando o destaque para, não na seleção.
         if (show.mode === 'roleta') return;
         audio.playEffect('extract');
-        audio.playEffect(firstBet.isMatch(number) ? 'match' : 'reveal');
+        audio.playEffect('reveal');
         if (index === EXTRACTION_SIZE - 1) audio.playEffect('last');
       },
       onComplete() {
@@ -224,7 +234,8 @@ export function createInterface({ visualization, root = document, history = null
     // Limpa apenas estado local; os dados persistidos já foram apagados pelo
     // serviço. Nenhuma função gera novo resultado ou nova aposta.
     bets.clearAll();
-    beginFirstBet();
+    replayChampion = null;
+    clearChampion();
     celebration.hide();
     show.clear();
     conferredGeneration = session.generation;
@@ -264,6 +275,9 @@ export function createInterface({ visualization, root = document, history = null
       refreshContest();
       historyPanel.refresh();
     },
+    onDrawConferred: (conferences, draw) => {
+      applyChampion(describeChampions(conferences, draw));
+    },
   });
 
   // Conferência automática: apenas quando um novo resultado é concluído. A
@@ -290,18 +304,46 @@ export function createInterface({ visualization, root = document, history = null
         }
       }
 
+      const championInfo = bets.getChampion();
       const plan = planCelebration({
         conferences,
+        champion: championInfo,
         settings: preferences,
         random: createTestRandom(),
       });
       celebration.show(plan);
+      if (championInfo.active) audio.playEffect('champion');
       const intensity = plan.items.some((item) => item.intensity === 'grande')
         ? 'grande'
         : plan.items.some((item) => item.intensity === 'moderada') ? 'moderada' : 'discreta';
       audio.playEffect(plan.summary.anyCelebration ? 'win' : 'noPrize', { intensity });
       if (plan.summary.fireworks) audio.playEffect('fireworks');
     })().catch((error) => console.warn('Apresentação de resultado indisponível:', error));
+  });
+
+  // A apresentação pode ser replayada na troca de modo; reaplicamos o destaque
+  // quando a reprodução termina, sem nova conferência e sem novo resultado.
+  let wasComplete = false;
+  show.subscribe((state) => {
+    if (state.complete && !wasComplete) {
+      const next = replayChampion ?? (champion.active ? champion : null);
+      replayChampion = null;
+      if (next) applyChampion(next);
+    }
+    wasComplete = state.complete;
+  });
+
+  // A troca de modo visual não recalcula nem descarta o campeão: ele permanece
+  // visível até o próximo sorteio ou conferência manual.
+  radioGlobo.addEventListener('change', () => {
+    if (!radioGlobo.checked) return;
+    replayChampion = champion.active ? champion : null;
+    show.selectMode('globo');
+  });
+  radioRoleta.addEventListener('change', () => {
+    if (!radioRoleta.checked) return;
+    replayChampion = champion.active ? champion : null;
+    show.selectMode('roleta');
   });
 
   // O globo consome GPU mesmo oculto: a animação só roda no modo visível.
@@ -311,15 +353,6 @@ export function createInterface({ visualization, root = document, history = null
     else visualization.stopAnimation();
   });
 
-  // A troca de modo não reinicia a extração: os destaques já conquistados e o
-  // contador devem permanecer visíveis até o fim. A referência é recapturada
-  // ao sortear, reiniciar ou limpar a simulação.
-  radioGlobo.addEventListener('change', () => {
-    if (radioGlobo.checked) show.selectMode('globo');
-  });
-  radioRoleta.addEventListener('change', () => {
-    if (radioRoleta.checked) show.selectMode('roleta');
-  });
   for (const input of ritmoInputs) {
     input.addEventListener('change', () => {
       if (input.checked) show.setPresentationMode(input.value);
@@ -328,7 +361,8 @@ export function createInterface({ visualization, root = document, history = null
   find('#btn-sortear').addEventListener('click', () => {
     audio.unlock();
     audio.playEffect('start');
-    beginFirstBet();
+    replayChampion = null;
+    clearChampion();
     show.startDraw();
   });
   buttonPause.addEventListener('click', () => {
@@ -347,7 +381,7 @@ export function createInterface({ visualization, root = document, history = null
   });
   buttonRestart.addEventListener('click', () => {
     audio.unlock();
-    beginFirstBet();
+    replayChampion = champion.active ? champion : null;
     show.restart();
   });
   speedInput.addEventListener('input', (event) => {
@@ -385,11 +419,9 @@ export function createInterface({ visualization, root = document, history = null
     }
     audio.configure(preferences);
     await bets.hydrate();
-    beginFirstBet();
     await historyPanel.refresh();
   })();
 
-  beginFirstBet();
   updateUI(show.getState());
 
   function useRoletaFallback() {

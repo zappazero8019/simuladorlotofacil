@@ -17,8 +17,6 @@ export function createRoleta(container, {
   timer = defaultTimer,
   reducedMotion = false,
   interval = 720,
-  isMatch = () => false,
-  onMatch = () => {},
 } = {}) {
   if (!container || typeof container.appendChild !== 'function') {
     throw new TypeError('container deve ser um elemento DOM.');
@@ -124,11 +122,6 @@ export function createRoleta(container, {
     slot.number.textContent = text;
     slot.cell.classList.remove('vazia', 'em-giro');
     slot.cell.classList.add('revelada');
-    const matched = Boolean(isMatch(number));
-    if (matched) {
-      slot.cell.classList.add('acerto-primeiro');
-      onMatch(number);
-    }
     if (animated) {
       slot.cell.classList.add('impacto');
       slot.number.classList.add('entrando');
@@ -137,25 +130,21 @@ export function createRoleta(container, {
         slot.number.classList.remove('entrando');
       }, 650);
     }
-    slot.cell.setAttribute(
-      'aria-label',
-      `Posição ${index + 1}: número ${text}${matched ? ' · acerto do primeiro bilhete' : ''}`,
-    );
+    slot.cell.setAttribute('aria-label', `Posição ${index + 1}: número ${text}`);
   }
 
   function finishSpin({ silent = false } = {}) {
     if (!spin) return false;
     const { number, index } = spin;
-    const matched = Boolean(isMatch(number));
     clearSpinTimer();
     clearHover();
     spin = null;
     applyReveal(number, index, !silent);
     if (!silent) {
       // O slowdown já tocou ao cruzar a fase de desaceleração em `advance()`;
-      // aqui só a confirmação da parada, com timbre exclusivo quando o número
-      // pertence ao primeiro bilhete.
-      audio?.playEffect?.(matched ? 'match' : 'reveal');
+      // aqui só a confirmação da parada. O timbre de campeão toca uma única vez
+      // após a conferência, para não antecipar o resultado durante a extração.
+      audio?.playEffect?.('reveal');
       if (index === ROLETA_SLOTS - 1) audio?.playEffect?.('last');
     }
     updateFooter();
@@ -261,6 +250,21 @@ export function createRoleta(container, {
     return true;
   }
 
+  /** Pinta somente os números revelados que pertencem a bilhetes campeões. */
+  function markChampions(numbers = []) {
+    const champions = new Set(Array.isArray(numbers) ? numbers.map(Number) : []);
+    cells.forEach((slot, index) => {
+      if (!slot.cell.classList.contains('revelada')) return;
+      const text = slot.number.textContent;
+      const isChampion = champions.has(Number(text));
+      slot.cell.classList.toggle('campeao', isChampion);
+      slot.cell.setAttribute(
+        'aria-label',
+        `Posição ${index + 1}: número ${text}${isChampion ? ' · maior número de acertos' : ''}`,
+      );
+    });
+  }
+
   function reset() {
     cancelSpin();
     for (const id of timers) timer.clear(id);
@@ -333,6 +337,7 @@ export function createRoleta(container, {
   return {
     reveal,
     startSpin,
+    markChampions,
     reset,
     setPaused,
     setSpeed,

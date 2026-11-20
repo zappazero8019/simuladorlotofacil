@@ -13,6 +13,7 @@ import {
   validatePoolShares,
 } from '../bets/index.js';
 import { countCombinations, MAX_BET_SIZE, MIN_BET_SIZE } from '../core/index.js';
+import { conferenceKey, describeChampions } from '../results/champion.js';
 import { createVolanteUI } from './volante.js';
 import {
   computePurchasePreview,
@@ -34,6 +35,7 @@ export function createBetsPanel({
   getContest = () => 1,
   getGeneration = () => null,
   onDataChange = () => {},
+  onDrawConferred = () => {},
 } = {}) {
   const find = (selector) => root.querySelector(selector);
   const volante = createVolante();
@@ -45,6 +47,8 @@ export function createBetsPanel({
   let localSessionId = sessionId;
   const purchaseGuard = createPurchaseGuard();
   let buying = false;
+  // Apenas apresentação: o campeão é derivado de conferências já calculadas.
+  let champion = describeChampions([]);
 
   const volanteUI = createVolanteUI({
     container: find('#volante'),
@@ -330,15 +334,41 @@ export function createBetsPanel({
     for (const bet of allBets.slice(0, RENDER_LIMIT)) {
       const card = document.createElement('article');
       card.className = 'aposta-cartao';
+      const isChampion = champion.isBetChampion(bet.id);
+      if (isChampion) {
+        card.classList.add('aposta-campea');
+        card.setAttribute('aria-label', `Bilhete campeão · ${champion.scoreLabel}`);
+      }
 
       const title = document.createElement('h4');
       title.textContent = `Aposta #${bet.displayId ?? bet.id}${bet.contests > 1
         ? ` — Teimosinha ${bet.contests} concursos` : ''}`;
       card.appendChild(title);
 
+      if (isChampion) {
+        const badge = document.createElement('p');
+        badge.className = 'aposta-campea-selo';
+        badge.textContent = `${champion.label} · ${champion.scoreLabel}`;
+        card.appendChild(badge);
+      }
+
       const numbers = document.createElement('p');
       numbers.className = 'aposta-numeros';
-      numbers.textContent = numbersText(bet.numbers);
+      const matchedNumbers = new Set(champion.numbersForBet(bet.id));
+      if (isChampion && matchedNumbers.size > 0) {
+        bet.numbers.forEach((number, index) => {
+          if (index > 0) numbers.appendChild(document.createTextNode(' '));
+          const span = document.createElement('span');
+          span.textContent = pad(number);
+          if (matchedNumbers.has(number)) {
+            span.className = 'numero-campeao';
+            span.setAttribute('aria-label', `Acerto do bilhete campeão: ${pad(number)}`);
+          }
+          numbers.appendChild(span);
+        });
+      } else {
+        numbers.textContent = numbersText(bet.numbers);
+      }
       card.appendChild(numbers);
 
       const meta = document.createElement('p');
@@ -396,6 +426,14 @@ export function createBetsPanel({
       const title = document.createElement('h4');
       title.textContent = `Aposta #${item.betId} · concurso ${item.contest}`;
       card.appendChild(title);
+
+      if (champion.keys.includes(conferenceKey(item))) {
+        card.classList.add('conferencia-campea');
+        const badge = document.createElement('p');
+        badge.className = 'aposta-campea-selo';
+        badge.textContent = `${champion.label} · ${champion.scoreLabel}`;
+        card.appendChild(badge);
+      }
 
       const lines = [
         ['Apostados', numbersText(item.numbers)],
@@ -511,14 +549,25 @@ export function createBetsPanel({
       for (const conference of created) appendConference(conference);
       renderBets();
       onDataChange();
+      onDrawConferred(created, [...draw]);
       return created;
     });
+  }
+
+  /** Atualiza somente a apresentação do campeão; não recalcula conferência. */
+  function setChampion(next) {
+    champion = next && typeof next.isBetChampion === 'function'
+      ? next
+      : describeChampions([]);
+    renderBets();
+    renderConferences();
   }
 
   /** Esvazia o estado local após um reinício persistido, sem gravar nada. */
   function clearAll() {
     registry.clear();
     conferences.length = 0;
+    champion = describeChampions([]);
     renderBets();
     renderConferences();
     clearSelection();
@@ -634,11 +683,9 @@ export function createBetsPanel({
     },
     registerBet,
     registerDrawResult,
-    /** Referência visual: primeiro bilhete cadastrado, sem efeito na conferência. */
-    getFirstBet() {
-      const first = registry.list()[0] ?? null;
-      return first ? { id: first.id, numbers: [...first.numbers] } : null;
-    },
+    /** Apresentação do campeão; nenhuma função altera conferência ou finanças. */
+    setChampion,
+    getChampion: () => champion,
     hydrate,
     clearAll,
     conferir,
