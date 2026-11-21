@@ -6,8 +6,8 @@ import { createAudioEngine } from '../audio/index.js';
 import {
   CHAMPION_EMPTY_LABEL,
   createTestRandom,
-  describeChampions,
   planCelebration,
+  resolveHighlight,
 } from '../results/index.js';
 import { readPreferences } from '../settings/preferences.js';
 import { createRoleta } from './roleta.js';
@@ -34,17 +34,18 @@ export function createInterface({ visualization, root = document, history = null
   let preferences = readPreferences();
   const reducedMotion = Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
-  // Destaque dos bilhetes campeões: estado puramente apresentacional, derivado
-  // das conferências já calculadas. Nenhuma pontuação é antecipada na extração.
+  // Destaque visual pós-conferência: bilhete único é destacado diretamente, sem
+  // apuração de campeão; dois ou mais seguem a apuração dos empates. Nenhuma
+  // pontuação é antecipada na extração.
   let bets = null;
-  let champion = describeChampions([]);
+  let champion = resolveHighlight([]);
   let replayChampion = null;
   const championCounter = find('#contador-primeiro-bilhete');
 
   function applyChampion(next, { conferenced = true } = {}) {
     champion = next && typeof next.isBetChampion === 'function'
       ? next
-      : describeChampions([]);
+      : resolveHighlight([]);
     bets?.setChampion?.(champion);
     if (championCounter) {
       championCounter.textContent = champion.active
@@ -61,7 +62,7 @@ export function createInterface({ visualization, root = document, history = null
   }
 
   function clearChampion() {
-    applyChampion(describeChampions([]), { conferenced: false });
+    applyChampion(resolveHighlight([]), { conferenced: false });
   }
 
   const celebration = createCelebrationOverlay({ root: root.body ?? root });
@@ -276,7 +277,7 @@ export function createInterface({ visualization, root = document, history = null
       historyPanel.refresh();
     },
     onDrawConferred: (conferences, draw) => {
-      applyChampion(describeChampions(conferences, draw));
+      applyChampion(resolveHighlight(conferences, draw));
     },
   });
 
